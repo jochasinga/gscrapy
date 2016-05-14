@@ -5,7 +5,12 @@ import (
 	"log"
 	"net/http"
 	"runtime"
+	"strings"
 	"sync"
+
+	"github.com/yhat/scrape"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 type Spider interface {
@@ -16,11 +21,6 @@ type BaseSpider struct {
 	Name      string
 	StartURLs []string
 	Options   *Options
-	callback  func(*http.Response) *Item
-}
-
-func formatUserAgentStr(format string, args ...string) string {
-	return fmt.Sprintf(format, args...)
 }
 
 func prepRequest(method, url string, opt *Options, ropts []func(*http.Request)) (*http.Request, error) {
@@ -31,10 +31,11 @@ func prepRequest(method, url string, opt *Options, ropts []func(*http.Request)) 
 	for _, ropt := range ropts {
 		ropt(req)
 	}
-	if len(opt.BotName) > 0 && len(opt.Contact) {
-		req.Header.Set("user-agent", formatStr(
-			opt.UserAgentFormat, opt.BotName, opt.Contact))
-
+	if opt != nil {
+		if len(opt.BotName) > 0 {
+			req.Header.Set("user-agent", fmt.Sprintf(
+				opt.UserAgentFormat, opt.BotName, opt.Contact))
+		}
 	}
 	return req, nil
 }
@@ -65,21 +66,54 @@ func respGen(urls []string, opt *Options, ropts []func(*http.Request)) <-chan *h
 	return out
 }
 
-func (sp *BaseSpider) Crawl(urls []string, opt *Options, ropts ...func(r *http.Request)) {
-	options := NewOptions()
-	if len(opt.BotName) > 0 {
-		options.BotName = opt.BotName
+func rootGen(in <-chan *http.Response) <-chan *html.Node {
+	_ = runtime.GOMAXPROCS(runtime.NumCPU())
+	var wg sync.WaitGroup
+	out := make(chan *html.Node)
+	for resp := range in {
+		wg.Add(1)
+		go func(resp *http.Response) {
+			root, err := html.Parse(resp.Body)
+			if err != nil {
+				log.Fataln(err)
+			}
+			out <- root
+			wg.Done()
+		}(resp)
 	}
-	if opt.Timeout != 0 {
-		options.Timeout = opt.Timeout
-	}
-	if len(opt.Headers) > 0 {
-		options.Headers = opt.Headers
-	}
-	rc := respGen(urls, opt, ropts)
-
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
 }
 
-func (sp *BaseSpider) Parse(r *http.Response) *Item {
-	return nil
+func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
+	var wg sync.WaitGroup
+	out := make(chan Item)
+	for root := range in {
+		wg.Add(1)
+		go func(r *html.Node) {
+			for key := range sp.Item {
+				// TODO: Handle case when field = 0
+				field := atom.Lookup(strings.Title(key))
+				node, ok := scrape.Find(r, scrape.ByTag(field))
+				if ok {
+					sp.Item.Add(key, node)
+				}
+				out <- sp.Item
+			}
+			wg.Done()
+		}(root)
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
+}
+
+func (sp *BaseSpider) Crawl(urls []string, opt *Options, ropts ...func(r *http.Request)) <-chan Item {
+	items := sp.Parse(rootGen(respGen(urls, opt, ropts)))
+	return items
 }

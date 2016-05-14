@@ -14,7 +14,7 @@ type Options struct {
 	Headers         http.Header
 }
 
-func NewOptions(opts ...func(o *Options)) *Options {
+func NewOptions(opt ...func(o *Options)) *Options {
 	o := &Options{
 		BotName:         "greasybot",
 		Contact:         "apology@example.com",
