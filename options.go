@@ -7,21 +7,24 @@ import (
 
 type Options struct {
 	BotName         string
-	Website         string
-	Email           string
-	UserAgentFormat string
-	Timeout         time.Duration
+	Contact         string
 	Headers         http.Header
+	Timeout         time.Duration
+	UserAgentFormat string
 }
 
-func NewOptions(opt ...func(o *Options)) *Options {
+func NewOptions(opts ...func(o *Options)) *Options {
 	o := &Options{
 		BotName:         "greasybot",
 		Contact:         "apology@example.com",
 		UserAgentFormat: "%q(%q)",
 		Headers: http.Header{
-			"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-			"Accept-Language": "en",
+			"Accept": {"text/html",
+				"application/xhtml+xml",
+				"application/xml;q=0.9",
+				"*/*;q=0.8",
+			},
+			"Accept-Language": {"en"},
 		},
 	}
 	for _, opt := range opts {

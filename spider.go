@@ -2,6 +2,7 @@ package gscrapy
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"runtime"
@@ -14,13 +15,17 @@ import (
 )
 
 type Spider interface {
-	Parse(*http.Response) *Item
+	Crawl([]string, *Options, ...func(*http.Request))
+	Parse(<-chan *html.Node) <-chan Item
+	Write(w io.Writer) error
 }
 
 type BaseSpider struct {
+	Item      Item
+	items     <-chan Item
 	Name      string
-	StartURLs []string
 	Options   *Options
+	StartURLs []string
 }
 
 func prepRequest(method, url string, opt *Options, ropts []func(*http.Request)) (*http.Request, error) {
@@ -49,14 +54,14 @@ func respGen(urls []string, opt *Options, ropts []func(*http.Request)) <-chan *h
 		go func(url string) {
 			req, err := prepRequest("GET", url, opt, ropts)
 			if err != nil {
-				log.Fataln(err)
+				log.Fatalln(err)
 			}
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
-				log.Fataln(err)
+				log.Fatalln(err)
 			}
 			out <- resp
-			wg.done()
+			wg.Done()
 		}(url)
 	}
 	go func() {
@@ -75,7 +80,7 @@ func rootGen(in <-chan *http.Response) <-chan *html.Node {
 		go func(resp *http.Response) {
 			root, err := html.Parse(resp.Body)
 			if err != nil {
-				log.Fataln(err)
+				log.Fatalln(err)
 			}
 			out <- root
 			wg.Done()
@@ -94,9 +99,9 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 	for root := range in {
 		wg.Add(1)
 		go func(r *html.Node) {
-			for key := range sp.Item {
+			for key := range sp.Item.(BaseItem) {
 				// TODO: Handle case when field = 0
-				field := atom.Lookup(strings.Title(key))
+				field := atom.Lookup([]byte(strings.Title(key)))
 				node, ok := scrape.Find(r, scrape.ByTag(field))
 				if ok {
 					sp.Item.Add(key, node)
@@ -113,7 +118,16 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 	return out
 }
 
-func (sp *BaseSpider) Crawl(urls []string, opt *Options, ropts ...func(r *http.Request)) <-chan Item {
-	items := sp.Parse(rootGen(respGen(urls, opt, ropts)))
-	return items
+func (sp *BaseSpider) Crawl(urls []string, opt *Options, ropts ...func(r *http.Request)) {
+	sp.items = sp.Parse(rootGen(respGen(urls, opt, ropts)))
+}
+
+func (sp *BaseSpider) Write(w io.Writer) error {
+	for item := range sp.items {
+		err := item.Write(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
