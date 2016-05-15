@@ -8,9 +8,9 @@ Description
 Explore the goroutines, channels and [pipelines](https://blog.golang.org/pipelines)
 for a high-level, highly concurrent web scraper in Go.
 
-Disclaimer!
------------
-Still a work in progress. Better wait 'til it's released.
+Disclaimer
+----------
+This is still a work in progress!
 
 Install
 -------
@@ -22,6 +22,7 @@ go get github.com/jochasinga/gscrapy
 
 Usage
 -----
+
 ```go
 
 package main
@@ -50,7 +51,7 @@ func main() {
 
 ```
 
-results:
+results (or what's targeted):
 
 ```bash
 
