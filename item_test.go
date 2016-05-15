@@ -1,8 +1,13 @@
 package gscrapy
 
 import (
+	"bytes"
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/yhat/scrape"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -75,38 +80,22 @@ var sampleNodes = []struct {
 	html string
 	node *html.Node
 }{
-	{"title", &html.Node{
-		Type:     html.ElementNode,
-		DataAtom: atom.Title,
-		Data:     "title",
-	},
-	},
-	{"meta", &html.Node{
-		Type:     html.ElementNode,
-		DataAtom: atom.Meta,
-		Data:     "meta",
-	},
-	},
-	{"h1", &html.Node{
-		Type:     html.ElementNode,
-		DataAtom: atom.H1,
-		Data:     "h1",
-	},
-	},
+	{"title", &html.Node{}},
+	{"meta", &html.Node{}},
+	{"h1", &html.Node{}},
 }
 
-/*
 func TestItemWrite(t *testing.T) {
 	buf := new(bytes.Buffer)
-	myItem := NewItem()
+	item := NewItem()
 	for _, tt := range sampleNodes {
-		myItem.Add(tt.html, tt.node)
+		item.Add(tt.html, tt.node)
 	}
 	err := item.Write(buf)
 	if err != nil {
 		t.Error(err)
 	}
-
+	t.Log(buf.String())
 	m := map[string][]string{}
 	for _, tt := range sampleNodes {
 		m[tt.html] = append(m[tt.html], scrape.Text(tt.node))
@@ -115,8 +104,7 @@ func TestItemWrite(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Compare(buf.Bytes(), b) != 0 {
-		t.Errorf("Expect %q. Got %q", buf.String(), string(b))
+	if strings.Compare(buf.String(), string(b)+"\n") != 0 {
+		t.Errorf("Expect %q. Got %q", buf.String(), string(b)+"\n")
 	}
 }
-*/

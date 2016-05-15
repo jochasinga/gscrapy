@@ -11,6 +11,7 @@ type Options struct {
 	Headers         http.Header
 	Timeout         time.Duration
 	UserAgentFormat string
+	Request         *http.Request
 }
 
 func NewOptions(opts ...func(o *Options)) *Options {

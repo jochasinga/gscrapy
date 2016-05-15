@@ -16,7 +16,7 @@ import (
 
 type Spider interface {
 	Crawl([]string, *Options, ...func(*http.Request))
-	Parse(<-chan *html.Node, Item) <-chan Item
+	Parse(<-chan *html.Node) <-chan Item
 	Write(w io.Writer) error
 }
 
@@ -26,17 +26,18 @@ type BaseSpider struct {
 	StartURLs      []string
 	Options        *Options
 	Item           Item
+	items          <-chan Item
 }
 
-func prepRequest(method, url string, opt *Options, ropts []func(*http.Request)) (*http.Request, error) {
+func prepRequest(method, url string, opt *Options) (*http.Request, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	for _, ropt := range ropts {
-		ropt(req)
-	}
 	if opt != nil {
+		if opt.Request != nil {
+			req = opt.Request
+		}
 		if len(opt.BotName) > 0 {
 			req.Header.Set("user-agent", fmt.Sprintf(
 				opt.UserAgentFormat, opt.BotName, opt.Contact))
@@ -45,14 +46,14 @@ func prepRequest(method, url string, opt *Options, ropts []func(*http.Request)) 
 	return req, nil
 }
 
-func respGen(urls []string, opt *Options, ropts []func(*http.Request)) <-chan *http.Response {
+func respGen(urls []string, opt *Options) <-chan *http.Response {
 	_ = runtime.GOMAXPROCS(runtime.NumCPU())
 	var wg sync.WaitGroup
 	out := make(chan *http.Response)
 	wg.Add(len(urls))
 	for _, url := range urls {
 		go func(url string) {
-			req, err := prepRequest("GET", url, opt, ropts)
+			req, err := prepRequest("GET", url, opt)
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -100,7 +101,6 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 		wg.Add(1)
 		go func(r *html.Node) {
 			for key := range sp.Item {
-				// TODO: Handle case when field = 0
 				key := strings.ToLower(key)
 				field := atom.Lookup([]byte(key))
 				node, ok := scrape.Find(r, scrape.ByTag(field))
@@ -119,12 +119,13 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 	return out
 }
 
-func (sp *BaseSpider) Crawl(urls []string, opt *Options, ropts ...func(r *http.Request)) <-chan Item {
-	items := sp.Parse(rootGen(respGen(urls, opt, ropts)))
+func (sp *BaseSpider) Crawl() <-chan Item {
+	items := sp.Parse(rootGen(respGen(sp.StartURLs, sp.Options)))
+	sp.items = items
 	return items
 }
 
-/*
+// Write writes data corresponding to sp.Item as JSON bytes to Writer w.
 func (sp *BaseSpider) Write(w io.Writer) error {
 	for item := range sp.items {
 		err := item.Write(w)
@@ -134,4 +135,3 @@ func (sp *BaseSpider) Write(w io.Writer) error {
 	}
 	return nil
 }
-*/

@@ -1,7 +1,11 @@
 package gscrapy
 
 import (
+	"encoding/json"
+	"io"
 	"strings"
+
+	"github.com/yhat/scrape"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -49,7 +53,6 @@ func (item Item) Get(key string) *html.Node {
 	return item[lowered][0]
 }
 
-/* TODO: Revisit Write
 func (item Item) Write(w io.Writer) error {
 	newMap := map[string][]string{}
 	for key, nodes := range item {
@@ -64,4 +67,3 @@ func (item Item) Write(w io.Writer) error {
 	}
 	return nil
 }
-*/
