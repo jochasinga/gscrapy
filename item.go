@@ -1,53 +1,62 @@
 package gscrapy
 
 import (
-	"encoding/json"
-	"io"
+	"strings"
 
-	"github.com/yhat/scrape"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
 
-type Item interface {
-	Add(string, *html.Node)
-	Del(string)
-	Get(string) *html.Node
-	Write(w io.Writer) error
-}
+type Item map[string][]*html.Node
 
-type BaseItem map[string]*html.Node
-
-//type BaseItem map[string]scrape.Matcher
-//type Item map[string]*Field
-
+// NewItem create and returns *Item. htmlStr provided
+// are the targeted HTML tags to scrape.
 func NewItem(htmlStr ...string) Item {
-	item := BaseItem{}
-	for _, st := range htmlStr {
-		item.Add(st, nil)
+	item := Item{}
+	// Start fresh
+	if len(htmlStr) > 0 {
+		for _, str := range htmlStr {
+			item.Set(str, nil)
+		}
 	}
 	return item
 }
 
-func (item BaseItem) Add(key string, node *html.Node) {
-	a := atom.Lookup([]byte(key))
+func (item Item) Add(key string, node *html.Node) {
+	lowered := strings.ToLower(key)
+	a := atom.Lookup([]byte(lowered))
 	if a != 0 {
-		item[key] = node
+		item[lowered] = append(item[lowered], node)
 	}
 }
 
-func (item BaseItem) Del(key string) {
-	delete(item, key)
+func (item Item) Set(key string, node *html.Node) {
+	//capped := strings.Title(key)
+	lowered := strings.ToLower(key)
+	a := atom.Lookup([]byte(lowered))
+	if a != 0 {
+		item[lowered] = []*html.Node{node}
+	}
 }
 
-func (item BaseItem) Get(key string) *html.Node {
-	return item[key]
+func (item Item) Del(key string) {
+	lowered := strings.ToLower(key)
+	delete(item, lowered)
 }
 
-func (item BaseItem) Write(w io.Writer) error {
-	newMap := map[string]string{}
-	for key, node := range item {
-		newMap[key] = scrape.Text(node)
+func (item Item) Get(key string) *html.Node {
+	lowered := strings.ToLower(key)
+	return item[lowered][0]
+}
+
+/* TODO: Revisit Write
+func (item Item) Write(w io.Writer) error {
+	newMap := map[string][]string{}
+	for key, nodes := range item {
+		for _, node := range nodes {
+			text := scrape.Text(node)
+			newMap[key] = append(newMap[key], text)
+		}
 	}
 	err := json.NewEncoder(w).Encode(newMap)
 	if err != nil {
@@ -55,3 +64,4 @@ func (item BaseItem) Write(w io.Writer) error {
 	}
 	return nil
 }
+*/

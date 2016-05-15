@@ -16,7 +16,7 @@ import (
 
 type Spider interface {
 	Crawl([]string, *Options, ...func(*http.Request))
-	Parse(<-chan *html.Node) <-chan Item
+	Parse(<-chan *html.Node, Item) <-chan Item
 	Write(w io.Writer) error
 }
 
@@ -24,9 +24,8 @@ type BaseSpider struct {
 	Name           string
 	AllowedDomains []string
 	StartURLs      []string
-	Item           Item
-	items          <-chan Item
 	Options        *Options
+	Item           Item
 }
 
 func prepRequest(method, url string, opt *Options, ropts []func(*http.Request)) (*http.Request, error) {
@@ -100,9 +99,10 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 	for root := range in {
 		wg.Add(1)
 		go func(r *html.Node) {
-			for key := range sp.Item.(BaseItem) {
+			for key := range sp.Item {
 				// TODO: Handle case when field = 0
-				field := atom.Lookup([]byte(strings.Title(key)))
+				key := strings.ToLower(key)
+				field := atom.Lookup([]byte(key))
 				node, ok := scrape.Find(r, scrape.ByTag(field))
 				if ok {
 					sp.Item.Add(key, node)
@@ -121,10 +121,10 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 
 func (sp *BaseSpider) Crawl(urls []string, opt *Options, ropts ...func(r *http.Request)) <-chan Item {
 	items := sp.Parse(rootGen(respGen(urls, opt, ropts)))
-	sp.items = items
 	return items
 }
 
+/*
 func (sp *BaseSpider) Write(w io.Writer) error {
 	for item := range sp.items {
 		err := item.Write(w)
@@ -134,3 +134,4 @@ func (sp *BaseSpider) Write(w io.Writer) error {
 	}
 	return nil
 }
+*/

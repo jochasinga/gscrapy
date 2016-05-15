@@ -1,25 +1,18 @@
 package gscrapy
 
 import (
-	"bytes"
-	"encoding/json"
 	"reflect"
-	"strings"
 	"testing"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
 
-var item = NewItem()
-
 func TestItemType(t *testing.T) {
-	_, ok := item.(Item)
-	if ok != true {
-		t.Errorf("%v does not implement Item", item)
-	}
-	if reflect.TypeOf(item) != reflect.TypeOf((BaseItem)(nil)) {
-		t.Errorf("%v is not BaseItem", item)
+	item := NewItem()
+	if reflect.TypeOf(item) != reflect.TypeOf(Item{}) {
+		t.Errorf("Expect %v. Got %v\n",
+			reflect.TypeOf((Item)(nil)), reflect.TypeOf(item))
 	}
 }
 
@@ -36,10 +29,10 @@ var itemKeyTable = []struct {
 
 func TestCreateItem(t *testing.T) {
 	for _, tt := range itemKeyTable {
-		testItem := NewItem(tt.n)
-		for k := range testItem.(BaseItem) {
-			if !(strings.Contains(k, tt.expected)) {
-				t.Error("Item key does not match")
+		item := NewItem(tt.n)
+		for k := range item {
+			if k != tt.expected {
+				t.Errorf("Expect %v. Got %v\n", tt.expected, k)
 			}
 		}
 	}
@@ -57,36 +50,73 @@ var keyNodeTable = []struct {
 }
 
 func TestItemMethods(t *testing.T) {
-	buf := new(bytes.Buffer)
+	item := NewItem()
 	for _, tt := range keyNodeTable {
 		// Add
 		item.Add(tt.key, tt.node)
-		if item.(BaseItem)[tt.key] != tt.node {
-			t.Error("Item key and node does not match")
+		if item[tt.key][0] != tt.node {
+			t.Errorf("Expect item[%q][0] = %v. Got %v\n",
+				tt.key, tt.node, item[tt.key][0],
+			)
 		}
 		// Get
 		if item.Get(tt.key) != tt.node {
-			t.Error("Item key and node does not match")
-		}
-		// FIXME: Write
-		err := item.Write(buf)
-		if err != nil {
-			t.Error(err)
-		}
-		m := map[string]*html.Node{tt.key: tt.node}
-		b, err := json.Marshal(m)
-		if err != nil {
-			t.Error(err)
-		}
-		if bytes.Compare(buf.Bytes(), b) != 0 {
-			t.Log(buf.String(), string(b))
-			t.Fail()
+			t.Errorf("Expect %v. Got %v", tt.node, item.Get(tt.key))
 		}
 		// Del
 		item.Del(tt.key)
-		if item.(BaseItem)[tt.key] != nil {
-			t.Error("Item key should be deleted")
+		if item[tt.key] != nil {
+			t.Errorf("Item with key %q should've been deleted", tt.key)
 		}
-
 	}
 }
+
+var sampleNodes = []struct {
+	html string
+	node *html.Node
+}{
+	{"title", &html.Node{
+		Type:     html.ElementNode,
+		DataAtom: atom.Title,
+		Data:     "title",
+	},
+	},
+	{"meta", &html.Node{
+		Type:     html.ElementNode,
+		DataAtom: atom.Meta,
+		Data:     "meta",
+	},
+	},
+	{"h1", &html.Node{
+		Type:     html.ElementNode,
+		DataAtom: atom.H1,
+		Data:     "h1",
+	},
+	},
+}
+
+/*
+func TestItemWrite(t *testing.T) {
+	buf := new(bytes.Buffer)
+	myItem := NewItem()
+	for _, tt := range sampleNodes {
+		myItem.Add(tt.html, tt.node)
+	}
+	err := item.Write(buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	m := map[string][]string{}
+	for _, tt := range sampleNodes {
+		m[tt.html] = append(m[tt.html], scrape.Text(tt.node))
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		t.Error(err)
+	}
+	if bytes.Compare(buf.Bytes(), b) != 0 {
+		t.Errorf("Expect %q. Got %q", buf.String(), string(b))
+	}
+}
+*/
