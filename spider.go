@@ -21,11 +21,12 @@ type Spider interface {
 }
 
 type BaseSpider struct {
-	Item      Item
-	items     <-chan Item
-	Name      string
-	Options   *Options
-	StartURLs []string
+	Name           string
+	AllowedDomains []string
+	StartURLs      []string
+	Item           Item
+	items          <-chan Item
+	Options        *Options
 }
 
 func prepRequest(method, url string, opt *Options, ropts []func(*http.Request)) (*http.Request, error) {
@@ -118,8 +119,10 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 	return out
 }
 
-func (sp *BaseSpider) Crawl(urls []string, opt *Options, ropts ...func(r *http.Request)) {
-	sp.items = sp.Parse(rootGen(respGen(urls, opt, ropts)))
+func (sp *BaseSpider) Crawl(urls []string, opt *Options, ropts ...func(r *http.Request)) <-chan Item {
+	items := sp.Parse(rootGen(respGen(urls, opt, ropts)))
+	sp.items = items
+	return items
 }
 
 func (sp *BaseSpider) Write(w io.Writer) error {

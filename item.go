@@ -3,11 +3,10 @@ package gscrapy
 import (
 	"encoding/json"
 	"io"
-	"strings"
 
 	"github.com/yhat/scrape"
-
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 type Item interface {
@@ -19,8 +18,11 @@ type Item interface {
 
 type BaseItem map[string]*html.Node
 
+//type BaseItem map[string]scrape.Matcher
+//type Item map[string]*Field
+
 func NewItem(htmlStr ...string) Item {
-	item := &BaseItem{}
+	item := BaseItem{}
 	for _, st := range htmlStr {
 		item.Add(st, nil)
 	}
@@ -28,18 +30,18 @@ func NewItem(htmlStr ...string) Item {
 }
 
 func (item BaseItem) Add(key string, node *html.Node) {
-	capKey := strings.Title(key)
-	item[capKey] = node
+	a := atom.Lookup([]byte(key))
+	if a != 0 {
+		item[key] = node
+	}
 }
 
 func (item BaseItem) Del(key string) {
-	capKey := strings.Title(key)
-	delete(item, capKey)
+	delete(item, key)
 }
 
 func (item BaseItem) Get(key string) *html.Node {
-	capKey := strings.Title(key)
-	return item[capKey]
+	return item[key]
 }
 
 func (item BaseItem) Write(w io.Writer) error {
