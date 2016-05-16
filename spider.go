@@ -17,6 +17,7 @@ import (
 
 type SpiderStyle uint32
 
+// TODO: More preconfigured styles to come
 const (
 	Basic SpiderStyle = iota
 )
@@ -70,8 +71,16 @@ func prepRequest(method, url string, opt *Options) (*http.Request, error) {
 		return nil, err
 	}
 	if opt != nil {
+		// Prep the request with options
 		if opt.Request != nil {
 			req = opt.Request
+		}
+		if opt.Headers != nil {
+			for key, vals := range opt.Headers {
+				for _, val := range vals {
+					req.Header.Set(key, val)
+				}
+			}
 		}
 		if len(opt.BotName) > 0 {
 			req.Header.Set("user-agent", fmt.Sprintf(
@@ -157,7 +166,7 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 }
 
 func (sp *BaseSpider) Crawl(urls ...string) <-chan Item {
-	startURLS := sp.StartURLs
+	startURLs := sp.StartURLs
 	if len(urls) > 0 {
 		startURLs = urls
 	}

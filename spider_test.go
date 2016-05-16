@@ -3,6 +3,7 @@ package gscrapy
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 
@@ -21,7 +22,7 @@ func TestEmptySpiderConstructor(t *testing.T) {
 			reflect.TypeOf(sp),
 		)
 	}
-	if sp.Name != "greasybot" {
+	if strings.Compare(sp.Name, "greasybot") != 0 {
 		t.Errorf("Expect %q. Got %q", "greasybot", sp.Name)
 	}
 	opt := NewOptions()
@@ -44,7 +45,7 @@ func TestBasicSpiderConstructor(t *testing.T) {
 			reflect.TypeOf(sp),
 		)
 	}
-	if sp.Name != "greasybot" {
+	if strings.Compare(sp.Name, "greasybot") != 0 {
 		t.Errorf("Expect %q. Got %q", "greasybot", sp.Name)
 	}
 	opt := NewOptions()
@@ -53,6 +54,29 @@ func TestBasicSpiderConstructor(t *testing.T) {
 	}
 	if len(sp.StartURLs) != 0 {
 		t.Errorf("Expect %d. Got %d", 0, len(sp.StartURLs))
+	}
+}
+
+func TestPrepRequest(t *testing.T) {
+	opt := NewOptions()
+	req, err := prepRequest("GET", "http://example.com", opt)
+	if err != nil {
+		t.Error(err)
+	}
+	expected := "greasybot(apology@example.com)"
+	result := req.Header.Get("user-agent")
+	if strings.Compare(result, expected) != 0 {
+		t.Errorf("Expect %q. Got %q", expected, result)
+	}
+	expected = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+	result = req.Header.Get("accept")
+	if strings.Compare(result, expected) != 0 {
+		t.Errorf("Expect %s. Got %s", expected, result)
+	}
+	expected = "en"
+	result = req.Header.Get("accept-language")
+	if strings.Compare(result, expected) != 0 {
+		t.Errorf("Expect %s. Got %s", expected, result)
 	}
 }
 
@@ -110,7 +134,7 @@ func TestWriteMethod(t *testing.T) {
 		t.Error(err)
 	}
 	buf := new(bytes.Buffer)
-	// Called before Parse
+	// Called before Parse should return an error.
 	if err = sp.Write(buf); err == nil {
 		t.Error("Expect empty items error. Got nil")
 	}
