@@ -1,6 +1,7 @@
 package gscrapy
 
 import (
+	"bytes"
 	"reflect"
 	"sync"
 	"testing"
@@ -97,9 +98,20 @@ func TestParseMethod(t *testing.T) {
 	}
 	// Test items
 	for item := range items {
-		t.Log(item)
 		if len(item) != 3 {
 			t.Errorf("Expect 3. Got %d", len(item))
 		}
+	}
+}
+
+func TestWriteMethod(t *testing.T) {
+	sp, err := NewSpider()
+	if err != nil {
+		t.Error(err)
+	}
+	buf := new(bytes.Buffer)
+	// Called before Parse
+	if err = sp.Write(buf); err == nil {
+		t.Error("Expect empty items error. Got nil")
 	}
 }

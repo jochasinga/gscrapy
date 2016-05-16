@@ -1,6 +1,7 @@
 package gscrapy
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -49,6 +50,7 @@ func newDefaultSpider() (*BaseSpider, error) {
 	return spider, nil
 }
 
+// NewSpider returns a new BaseSpider given a style.
 func NewSpider(style ...SpiderStyle) (*BaseSpider, error) {
 	if len(style) > 0 {
 		// Last style counts
@@ -127,6 +129,8 @@ func rootGen(in <-chan *http.Response) <-chan *html.Node {
 	return out
 }
 
+// Parse consumes root nodes from an input channel, parses all nodes which
+// match the item's keys and returns a receive-only channel of Item.
 func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 	var wg sync.WaitGroup
 	out := make(chan Item)
@@ -136,9 +140,9 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 			for key := range sp.Item {
 				key := strings.ToLower(key)
 				field := atom.Lookup([]byte(key))
-				node, ok := scrape.Find(r, scrape.ByTag(field))
-				if ok {
-					sp.Item.Add(key, node)
+				nodes := scrape.FindAll(r, scrape.ByTag(field))
+				for _, n := range nodes {
+					sp.Item.Add(key, n)
 				}
 				out <- sp.Item
 			}
@@ -160,11 +164,14 @@ func (sp *BaseSpider) Crawl() <-chan Item {
 
 // Write writes data corresponding to sp.Item as JSON bytes to Writer w.
 func (sp *BaseSpider) Write(w io.Writer) error {
-	for item := range sp.items {
-		err := item.Write(w)
-		if err != nil {
-			return err
+	if sp.items != nil {
+		for item := range sp.items {
+			err := item.Write(w)
+			if err != nil {
+				return err
+			}
 		}
+		return nil
 	}
-	return nil
+	return errors.New("No items exist to write")
 }
