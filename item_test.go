@@ -49,6 +49,13 @@ func TestCreateItem(t *testing.T) {
 	}
 }
 
+func TestCreateItemWithBadKeys(t *testing.T) {
+	_, err := NewItem("title", "img", "shirley")
+	if err == nil {
+		t.Errorf("Expect error. Got nil")
+	}
+}
+
 var keyNodeTable = []struct {
 	key  string
 	node *html.Node
