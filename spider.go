@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -71,9 +70,25 @@ func prepRequest(method, url string, opt *Options) (*http.Request, error) {
 		return nil, err
 	}
 	if opt != nil {
+
 		// Prep the request with options
 		if opt.Request != nil {
-			req = opt.Request
+
+			// Create a new higher-precedence Request
+			request := opt.Request
+			switch {
+			case len(request.Header) == 0:
+				request.Header = opt.Headers
+				fallthrough
+			case len(request.Header.Get("user-agent")) == 0:
+				if len(opt.BotName) > 0 {
+					request.Header.Set("user-agent", fmt.Sprintf(
+						opt.UserAgentFormat, opt.BotName, opt.Contact))
+				}
+			default:
+				break
+			}
+			return request, nil
 		}
 		if opt.Headers != nil {
 			for key, vals := range opt.Headers {
@@ -82,16 +97,18 @@ func prepRequest(method, url string, opt *Options) (*http.Request, error) {
 				}
 			}
 		}
+
+		// TODO: Check for empty opt.Contact
 		if len(opt.BotName) > 0 {
 			req.Header.Set("user-agent", fmt.Sprintf(
 				opt.UserAgentFormat, opt.BotName, opt.Contact))
 		}
+		return req, nil
 	}
 	return req, nil
 }
 
 func respGen(urls []string, opt *Options) <-chan *http.Response {
-	_ = runtime.GOMAXPROCS(runtime.NumCPU())
 	var wg sync.WaitGroup
 	out := make(chan *http.Response)
 	wg.Add(len(urls))
@@ -117,7 +134,6 @@ func respGen(urls []string, opt *Options) <-chan *http.Response {
 }
 
 func rootGen(in <-chan *http.Response) <-chan *html.Node {
-	_ = runtime.GOMAXPROCS(runtime.NumCPU())
 	var wg sync.WaitGroup
 	out := make(chan *html.Node)
 	for resp := range in {
