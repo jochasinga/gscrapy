@@ -156,8 +156,12 @@ func (sp *BaseSpider) Parse(in <-chan *html.Node) <-chan Item {
 	return out
 }
 
-func (sp *BaseSpider) Crawl() <-chan Item {
-	items := sp.Parse(rootGen(respGen(sp.StartURLs, sp.Options)))
+func (sp *BaseSpider) Crawl(urls ...string) <-chan Item {
+	startURLS := sp.StartURLs
+	if len(urls) > 0 {
+		startURLs = urls
+	}
+	items := sp.Parse(rootGen(respGen(startURLs, sp.Options)))
 	sp.items = items
 	return items
 }
