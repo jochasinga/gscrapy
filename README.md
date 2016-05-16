@@ -5,20 +5,12 @@ A [scrapy](http://scrapy.org/) implementation in Go (close to, not quite).
 
 Description
 -----------
-Explore the goroutines, channels and [pipelines](https://blog.golang.org/pipelines)
-for a high-level, highly concurrent web scraper in Go.
+I wanted to explore the goroutines, channels and [pipelines](https://blog.golang.org/pipelines)
+for a high-level, highly concurrent and easy to use web scraper in Go.
 
 Warning!
 --------
-This is still a work in progress and a lot of things are changing aggressively.
-
-Install
--------
-```bash
-
-go get github.com/jochasinga/gscrapy
-
-```
+This is still a work in progress! Watch for a release.
 
 Usage
 -----
@@ -28,8 +20,19 @@ Usage
 package main
 
 import (
+        "os"
+
         gs "github.com/jochasinga/gscrapy"
 )
+
+startURLs = []string{
+        "http://techcrunch.com/",
+        "https://www.reddit.com/"
+        "https://en.wikipedia.org",
+        "https://news.ycombinator.com/",
+        "https://www.buzzfeed.com/",
+        "http://digg.com",
+},
 
 func main() {
         // Create an item map to store scraped data
@@ -37,30 +40,19 @@ func main() {
         // Create a spider
         sp := &gs.BaseSpider{
                 Name: "apologybot",
-                Contact: "apology@mail.com",
+                Contact: "apology@gmail.com",
                 // Assign to spider
                 Item : item,
-                StartURLs: []string{
-                        "http://techcrunch.com/",
-                        "https://www.reddit.com/"
-                        "https://en.wikipedia.org",
-                        "https://news.ycombinator.com/",
-                        "https://www.buzzfeed.com/",
-                        "http://digg.com",
-                },
+                StartURLs: startURLs,
         }
 
-        // Loop over the items channel
-        for item := range sp.Crawl() {
-                data := map[string][]string{}
-                for key, nodes := range item {
-                        for node := range nodes {
-                                data[key] = append(data[key], scrape.Text(node))
-                        }
-                }
-                jsn, _ := json.Marshal(data)
-                fmt.Println(jsn)
-        }
+        // OR create a default spider
+        // sp := NewSpider(gs.Basic)
+        // sp.Item = item
+        // _ = sp.Crawl(startURLs...)
+
+        _ = sp.Crawl()
+        sp.Write(os.Stdout)
 }
 
 ```
