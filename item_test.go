@@ -14,7 +14,10 @@ import (
 )
 
 func TestItemType(t *testing.T) {
-	item := NewItem()
+	item, err := NewItem()
+	if err != nil {
+		t.Error(err)
+	}
 	if reflect.TypeOf(item) != reflect.TypeOf(Item{}) {
 		t.Errorf("Expect %v. Got %v\n",
 			reflect.TypeOf((Item)(nil)), reflect.TypeOf(item))
@@ -34,7 +37,10 @@ var itemKeyTable = []struct {
 
 func TestCreateItem(t *testing.T) {
 	for _, tt := range itemKeyTable {
-		item := NewItem(tt.n)
+		item, err := NewItem(tt.n)
+		if err != nil {
+			t.Error(err)
+		}
 		for k := range item {
 			if k != tt.expected {
 				t.Errorf("Expect %v. Got %v\n", tt.expected, k)
@@ -55,7 +61,10 @@ var keyNodeTable = []struct {
 }
 
 func TestItemMethods(t *testing.T) {
-	item := NewItem()
+	item, err := NewItem()
+	if err != nil {
+		t.Error(err)
+	}
 	for _, tt := range keyNodeTable {
 		// Add
 		item.Add(tt.key, tt.node)
@@ -68,6 +77,19 @@ func TestItemMethods(t *testing.T) {
 		if item.Get(tt.key) != tt.node {
 			t.Errorf("Expect %v. Got %v", tt.node, item.Get(tt.key))
 		}
+		// Set
+		item.Set(tt.key, nil)
+		if item[tt.key][0] != nil {
+			t.Errorf("Expect item[%q][0] = nil. Got %v\n",
+				tt.key, item[tt.key][0],
+			)
+		}
+		// Reset
+		item.Reset(tt.key)
+		if len(item[tt.key]) > 0 {
+			t.Errorf("Expect 0. Got %d\n", len(item[tt.key]))
+		}
+
 		// Del
 		item.Del(tt.key)
 		if item[tt.key] != nil {
@@ -87,15 +109,17 @@ var sampleNodes = []struct {
 
 func TestItemWrite(t *testing.T) {
 	buf := new(bytes.Buffer)
-	item := NewItem()
-	for _, tt := range sampleNodes {
-		item.Add(tt.html, tt.node)
-	}
-	err := item.Write(buf)
+	item, err := NewItem()
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(buf.String())
+	for _, tt := range sampleNodes {
+		item.Add(tt.html, tt.node)
+	}
+	err = item.Write(buf)
+	if err != nil {
+		t.Error(err)
+	}
 	m := map[string][]string{}
 	for _, tt := range sampleNodes {
 		m[tt.html] = append(m[tt.html], scrape.Text(tt.node))

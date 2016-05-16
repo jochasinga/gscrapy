@@ -14,6 +14,12 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
+type SpiderStyle uint32
+
+const (
+	Basic SpiderStyle = iota
+)
+
 type Spider interface {
 	Crawl([]string, *Options, ...func(*http.Request))
 	Parse(<-chan *html.Node) <-chan Item
@@ -27,6 +33,33 @@ type BaseSpider struct {
 	Options        *Options
 	Item           Item
 	items          <-chan Item
+}
+
+func newDefaultSpider() (*BaseSpider, error) {
+	opt := NewOptions()
+	item, err := NewItem("title", "meta", "h1")
+	if err != nil {
+		return nil, err
+	}
+	spider := &BaseSpider{
+		Options: opt,
+		Item:    item,
+	}
+	spider.Name = spider.Options.BotName
+	return spider, nil
+}
+
+func NewSpider(style ...SpiderStyle) (*BaseSpider, error) {
+	if len(style) > 0 {
+		// Last style counts
+		switch style[len(style)-1] {
+		case 0:
+			return newDefaultSpider()
+		default:
+			break
+		}
+	}
+	return newDefaultSpider()
 }
 
 func prepRequest(method, url string, opt *Options) (*http.Request, error) {
